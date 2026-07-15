@@ -1,6 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -17,6 +18,14 @@ import {
 } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterOwnerDto } from './dto/register-owner.dto';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import type { AuthenticatedUser } from './interfaces/authenticated-user.interface';
+
+export interface CurrentUserResponse {
+  message: string;
+  user: AuthenticatedUser;
+}
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -63,5 +72,24 @@ export class AuthController {
   })
   login(@Body() loginDto: LoginDto): Promise<LoginResponse> {
     return this.authService.login(loginDto);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get the authenticated JWT user payload',
+  })
+  @ApiOkResponse({
+    description: 'Authenticated user fetched successfully',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing, invalid, or expired access token',
+  })
+  getCurrentUser(@CurrentUser() user: AuthenticatedUser): CurrentUserResponse {
+    return {
+      message: 'Authenticated user fetched successfully',
+      user,
+    };
   }
 }
