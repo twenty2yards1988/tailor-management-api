@@ -1,9 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 import { UserRole } from './enums/user-role.enum';
 import { User, UserDocument } from './schemas/user.schema';
+
+interface CreateOwnerInput {
+  name: string;
+  email: string;
+  passwordHash: string;
+  shopId: string;
+}
 
 @Injectable()
 export class UsersService {
@@ -54,6 +65,33 @@ export class UsersService {
     return ownerCount > 0;
   }
 
+  async createOwner(createOwnerInput: CreateOwnerInput): Promise<UserDocument> {
+    this.validateObjectId(createOwnerInput.shopId);
+
+    try {
+      const user = new this.userModel({
+        name: createOwnerInput.name.trim(),
+        email: this.normalizeEmail(createOwnerInput.email),
+        passwordHash: createOwnerInput.passwordHash,
+        role: UserRole.OWNER,
+        shopId: new Types.ObjectId(createOwnerInput.shopId),
+        isActive: true,
+      });
+
+      const savedUser = await user.save();
+
+      return this.findById(savedUser.id);
+    } catch (error: unknown) {
+      if (this.isDuplicateKeyError(error)) {
+        throw new ConflictException(
+          'An account with this email already exists, or this shop already has an owner.',
+        );
+      }
+
+      throw error;
+    }
+  }
+
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
   }
@@ -62,5 +100,14 @@ export class UsersService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('User not found');
     }
+  }
+
+  private isDuplicateKeyError(error: unknown): error is { code: number } {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 11000
+    );
   }
 }

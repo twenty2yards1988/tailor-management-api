@@ -21,7 +21,6 @@ export class User {
     required: true,
     trim: true,
     lowercase: true,
-    unique: true,
   })
   email!: string;
 
@@ -53,6 +52,7 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
+// Each email address can belong to only one user.
 UserSchema.index(
   {
     email: 1,
@@ -62,10 +62,13 @@ UserSchema.index(
   },
 );
 
+// Improves the performance of queries that search users by shop.
 UserSchema.index({
   shopId: 1,
 });
 
+// Allows only one OWNER account for each tailoring shop.
+// STAFF users are not affected by this unique index.
 UserSchema.index(
   {
     shopId: 1,
@@ -79,12 +82,15 @@ UserSchema.index(
   },
 );
 
+// Ensures passwordHash is removed whenever a User document
+// is converted into JSON for an API response.
 UserSchema.set('toJSON', {
   transform: (
     _document: UserDocument,
     returnedObject: { passwordHash?: string },
   ) => {
     delete returnedObject.passwordHash;
+
     return returnedObject;
   },
 });
