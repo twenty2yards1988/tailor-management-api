@@ -3,6 +3,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiForbiddenResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -19,8 +20,11 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { RegisterOwnerDto } from './dto/register-owner.dto';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Roles } from './decorators/roles.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import type { AuthenticatedUser } from './interfaces/authenticated-user.interface';
+import { UserRole } from '../users/enums/user-role.enum';
 
 export interface CurrentUserResponse {
   message: string;
@@ -89,6 +93,29 @@ export class AuthController {
   getCurrentUser(@CurrentUser() user: AuthenticatedUser): CurrentUserResponse {
     return {
       message: 'Authenticated user fetched successfully',
+      user,
+    };
+  }
+
+  @Get('owner-check')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Confirm OWNER-only access',
+  })
+  @ApiOkResponse({
+    description: 'Owner access confirmed',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing, invalid, or expired access token',
+  })
+  @ApiForbiddenResponse({
+    description: 'Authenticated user does not have the required role',
+  })
+  getOwnerCheck(@CurrentUser() user: AuthenticatedUser): CurrentUserResponse {
+    return {
+      message: 'Owner access confirmed',
       user,
     };
   }
